@@ -472,7 +472,7 @@
       srow('export-json', '⬇️', 'JSON으로 내보내기', '가계부·자산·예산·카테고리 전체 백업') +
       srow('import-json', '⬆️', 'JSON 불러오기', '백업 파일로 복원하거나 합치기') +
       srow('export-csv', '📄', 'CSV로 내보내기', '엑셀·스프레드시트에서 열어 보기') +
-      srow('import-csv', '📥', 'CSV 가져오기', '위플 머니 등에서 내보낸 파일 (컬럼 맞추기)') +
+      srow('import-csv', '📥', 'CSV 가져오기', '위플 머니 파일은 자동으로 맞춰져요') +
       '</div>';
     h += '<div class="sechead"><h3>관리</h3></div><div class="sgroup">' +
       srow('open-budget', '🎯', '예산', C.monthLabel(v) + (b.total ? ' · ' + C.comma(b.total) + '원' : ' · 아직 없음'), ' data-ym="' + v + '"') +
