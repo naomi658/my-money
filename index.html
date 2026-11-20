@@ -15,6 +15,11 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
 <title>나의 가계부</title>
 <style>
+  html{-webkit-text-size-adjust:100%}
+  @media (max-width:600px){
+    input[type=text],input[type=date],input[type=time],select,textarea{font-size:16px !important}
+    #enAmount{font-size:27px !important}
+  }
   :root{
     --purple:#7C5CFF; --purple-deep:#5A3BE0; --purple-dim:#9B84FF; --purple-soft:#F1EDFF;
     --ink:#191527; --ink2:#615B78; --ink3:#9C96B0; --line:#ECE9F4;
@@ -25,9 +30,10 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   [hidden]{display:none !important}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
-    -webkit-font-smoothing:antialiased}
-  body{padding-bottom:calc(72px + env(safe-area-inset-bottom)); font-size:14px}
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Helvetica Neue","Malgun Gothic",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; word-break:keep-all}
+  body{padding-bottom:calc(76px + env(safe-area-inset-bottom)); font-size:14px}
+  body.has-fab{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
   button{font-family:inherit}
   #app{max-width:560px;margin:0 auto;min-height:100vh;background:var(--bg);box-shadow:0 0 50px rgba(50,35,120,.07)}
   .num{font-variant-numeric:tabular-nums}
@@ -70,7 +76,7 @@
   .sumgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
   .sumgrid .col{min-width:0}
   .sumgrid .lab{font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:-.1px}
-  .sumgrid .val{font-size:16.5px;font-weight:800;letter-spacing:-.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sumgrid .val{font-size:clamp(14px,4.3vw,16.5px);font-weight:800;letter-spacing:-.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sumgrid .val.up{color:var(--up)} .sumgrid .val.down{color:var(--down)}
   .nwline{display:flex;align-items:center;gap:6px;margin-top:11px;padding-top:10px;border-top:1px dashed #EBE6F8;
     font-size:12px;color:var(--ink2);cursor:pointer;width:100%;background:none;border-left:none;border-right:none;border-bottom:none;text-align:left}
@@ -91,7 +97,7 @@
   .calrow{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
   .dow{text-align:center;font-size:10.5px;font-weight:700;color:var(--ink3);padding:1px 0 5px}
   .dow.sun{color:#E0655F} .dow.sat{color:#5B8DEF}
-  .cell{position:relative;border:none;background:transparent;border-radius:11px;padding:5px 0 4px;min-height:46px;
+  .cell{position:relative;border:none;background:transparent;border-radius:11px;padding:4px 0 3px;min-height:42px;
     display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;overflow:hidden}
   .cell .num{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.25}
   .cell.other .num{color:#D2CCE0;font-weight:600}
@@ -124,9 +130,10 @@
     box-shadow:0 1px 3px rgba(40,30,90,.055)}
   .empty b{display:block;color:var(--ink2);font-size:13.5px;margin-bottom:3px}
 
-  .samplebanner{display:flex;align-items:center;gap:8px;background:#FFF6E8;border:1px solid #F8E3BE;color:#8A6520;
+  .samplebanner{display:flex;align-items:flex-start;gap:8px;background:#FFF6E8;border:1px solid #F8E3BE;color:#8A6520;
     border-radius:14px;padding:10px 12px;font-size:11.5px;line-height:1.45;margin:2px 0 8px}
   .samplebanner b{font-weight:800}
+  .samplebanner .txt{flex:1;min-width:0;word-break:keep-all}
   .samplebanner button{margin-left:auto;flex:0 0 auto;border:none;background:#8A6520;color:#fff;font-size:11px;font-weight:700;
     border-radius:9px;padding:7px 10px;cursor:pointer}
 
@@ -136,7 +143,7 @@
   .hero:after{content:"";position:absolute;right:-46px;top:-66px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.13)}
   .hero:before{content:"";position:absolute;left:-30px;bottom:-70px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.07)}
   .hero .lab{font-size:12px;opacity:.88;font-weight:600;letter-spacing:.1px;display:flex;align-items:center;gap:5px}
-  .hero .big{font-size:30px;font-weight:800;letter-spacing:-1.2px;margin:5px 0 9px;position:relative;z-index:1}
+  .hero .big{font-size:clamp(21px,7.5vw,30px);font-weight:800;letter-spacing:-1.2px;margin:5px 0 9px;position:relative;z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hero .chips{display:flex;gap:16px;font-size:11.5px;position:relative;z-index:1;opacity:.95}
   .hero .chips span{display:flex;flex-direction:column;gap:2px}
   .hero .chips i{font-style:normal;opacity:.72;font-size:10.5px}
@@ -146,6 +153,7 @@
 
   .accrow{display:flex;align-items:center;gap:11px;width:100%;background:#fff;border:none;border-radius:16px;
     padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 3px rgba(40,30,90,.05);text-align:left;cursor:pointer}
+  .accrow .chev{color:#CFC9DE;font-size:15px;margin-left:2px;flex:0 0 auto}
   .accrow .ic{width:37px;height:37px;border-radius:12px;display:grid;place-items:center;font-size:17px;background:#F3F0FC;flex:0 0 auto}
   .accmain{flex:1;min-width:0}
   .accmain b{display:block;font-size:13.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -159,7 +167,7 @@
   /* ---------- stats ---------- */
   .stathero{background:#fff;border-radius:20px;padding:15px;margin:8px 0 10px;box-shadow:0 1px 3px rgba(40,30,90,.055)}
   .stathero .lab{font-size:11.5px;color:var(--ink3);font-weight:700}
-  .stathero .big{font-size:26px;font-weight:800;letter-spacing:-.9px;margin:2px 0 7px}
+  .stathero .big{font-size:clamp(20px,6.6vw,26px);font-weight:800;letter-spacing:-.9px;margin:2px 0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stathero .sub{display:flex;gap:12px;font-size:11.5px;color:var(--ink2);flex-wrap:wrap}
   .badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 6px}
   .badge.up{background:#E8F7F1;color:#0E8E68}
@@ -220,7 +228,7 @@
   /* ---------- sheet ---------- */
   #sheetRoot{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center}
   .sheet-bg{position:absolute;inset:0;background:rgba(19,12,40,.45)}
-  .sheet-card{position:relative;width:100%;max-width:560px;max-height:92vh;background:var(--bg);
+  .sheet-card{position:relative;width:100%;max-width:560px;max-height:92vh;max-height:92dvh;background:var(--bg);
     border-radius:24px 24px 0 0;display:flex;flex-direction:column;animation:sheetup .26s cubic-bezier(.22,.85,.3,1)}
   @keyframes sheetup{from{transform:translateY(30px);opacity:.6}to{transform:translateY(0);opacity:1}}
   @keyframes fadein{from{opacity:0}to{opacity:1}}
@@ -245,30 +253,31 @@
   .seg button{flex:1;border:none;background:transparent;padding:9px 0;border-radius:10px;font-size:13.5px;
     font-weight:800;color:var(--ink2);cursor:pointer;letter-spacing:-.2px}
   .seg button.on{background:#fff;color:var(--purple-deep);box-shadow:0 1px 4px rgba(60,40,140,.14)}
-  .field{margin:12px 0}
+  .field{margin:11px 0}
   .field > label{display:block;font-size:12px;font-weight:800;color:var(--ink2);margin:0 0 6px 2px;letter-spacing:-.1px}
   input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
     width:100%;border:1px solid var(--line);background:#fff;border-radius:13px;padding:12px 12px;font-size:15px;
     color:var(--ink);outline:none;-webkit-appearance:none;appearance:none;font-family:inherit}
+  input[type=checkbox]{accent-color:var(--purple);width:auto;min-width:20px;height:20px}
   input:focus,select:focus,textarea:focus{border-color:var(--purple-dim);box-shadow:0 0 0 3px rgba(124,92,255,.1)}
   select{background-image:linear-gradient(45deg,transparent 50%,#9C96B0 50%),linear-gradient(135deg,#9C96B0 50%,transparent 50%);
     background-position:calc(100% - 17px) 20px,calc(100% - 12px) 20px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;
     padding-right:34px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .amtbox{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:17px;
-    padding:11px 14px;margin-top:10px}
+    padding:9px 14px;margin-top:10px}
   .amtbox input{flex:1;border:none;outline:none;font-size:27px;font-weight:800;text-align:right;letter-spacing:-.8px;
     background:transparent;min-width:0;padding:0;border-radius:0;box-shadow:none}
   .amtbox .cur{font-size:15px;color:var(--ink2);font-weight:800}
   .quickamts{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
   .quickamts::-webkit-scrollbar{display:none}
-  .quickamts button{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--ink2);font-size:12px;
-    font-weight:700;border-radius:999px;padding:7px 11px;cursor:pointer}
+  .quickamts button{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--ink2);font-size:11.5px;
+    font-weight:700;border-radius:999px;padding:7px 9px;cursor:pointer}
   .catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:2px}
-  .catgrid button{border:1px solid var(--line);background:#fff;border-radius:13px;padding:9px 3px 8px;display:flex;
+  .catgrid button{border:1px solid var(--line);background:#fff;border-radius:13px;padding:7px 3px 6px;display:flex;
     flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:var(--ink2);line-height:1.2;
     cursor:pointer;letter-spacing:-.2px;overflow:hidden}
-  .catgrid button .em{font-size:18px;line-height:1.1}
+  .catgrid button .em{font-size:17px;line-height:1.1}
   .catgrid button.on{border-color:var(--purple);background:var(--purple-soft);color:var(--purple-deep);
     box-shadow:inset 0 0 0 1px var(--purple)}
   .listrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #F1EDF9}
@@ -355,7 +364,7 @@
       <span>자산</span>
     </button>
     <button class="tab" data-tab="settings" aria-label="설정">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M4.2 7.5l1.9 1.1M17.9 15.4l1.9 1.1M4.2 16.5l1.9-1.1M17.9 8.6l1.9-1.1"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
       <span>설정</span>
     </button>
   </div>

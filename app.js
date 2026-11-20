@@ -179,7 +179,7 @@
   /* ---------------- 내역 탭 ---------------- */
 
   function sampleBanner() {
-    return '<div class="samplebanner"><span>지금은 <b>샘플 데이터</b>로 둘러보는 중이에요. 마음껏 눌러 보세요.</span>' +
+    return '<div class="samplebanner"><span class="txt">지금은 <b>샘플 데이터</b>로 둘러보는 중이에요. 마음껏 눌러 보세요.</span>' +
       '<button data-act="reset-all">내 기록 시작</button></div>';
   }
 
@@ -197,14 +197,9 @@
       '<b>' + Math.round(bu.pct) + '% 사용</b></div>' +
       '<div class="track"><i class="' + (bu.pct > 100 ? 'over' : '') + '" style="width:' + Math.min(100, pct) + '%"></i></div>';
     var rest = bu.total - bu.spent;
-    h += '<div class="barrow" style="margin-top:7px"><span>' + (rest >= 0 ? '남은 예산' : '초과') + '</span>' +
-      '<b class="' + (rest >= 0 ? 'up' : 'down') + '">' + C.comma(Math.abs(rest)) + '원</b>' +
-      '<button class="linkbtn" data-act="open-budget" style="margin-left:8px">수정</button></div>';
-    bu.cats.slice(0, 2).forEach(function (c) {
-      h += '<div style="margin-top:9px"><div class="barrow"><span>' + esc(c.emoji) + ' ' + esc(c.name) + '</span>' +
-        '<b class="' + (c.pct > 100 ? 'down' : '') + '">' + C.comma(c.spent) + ' / ' + C.comma(c.budget) + '</b></div>' +
-        '<div class="track slim"><i class="' + (c.pct > 100 ? 'over' : '') + '" style="width:' + Math.min(100, c.pct) + '%"></i></div></div>';
-    });
+    h += '<div class="barrow" style="margin-top:6px"><span>' + (rest >= 0 ? '남은 예산' : '초과') + '</span>' +
+      '<b class="' + (rest >= 0 ? 'up' : 'down') + '" style="margin-left:auto">' + C.comma(Math.abs(rest)) + '원</b>' +
+      '<button class="linkbtn" data-act="open-budget" style="margin-left:10px">수정</button></div>';
     return h + '</div>';
   }
 
@@ -231,7 +226,9 @@
       cells.push(cellHTML(prevYm + '-' + C.pad2(pd), pd, true, s, SEL));
     }
     for (var d = 1; d <= last; d++) cells.push(cellHTML(v + '-' + C.pad2(d), d, false, s, SEL));
-    var remain = 42 - cells.length;
+    var rows = Math.ceil((startDow + last) / 7);
+    if (rows < 5) rows = 5;
+    var remain = rows * 7 - cells.length;
     for (var j = 1; j <= remain; j++) cells.push(cellHTML(nextYm + '-' + C.pad2(j), j, true, s, SEL));
     var dows = C.dowNames().map(function (n, i) {
       return '<div class="dow' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '') + '">' + n + '</div>';
@@ -287,7 +284,7 @@
       '<div class="sumgrid">' +
       '<div class="col"><div class="lab">수입</div><div class="val' + (s.income ? ' up' : '') + '">' + (s.income ? '+' + C.comma(s.income) : '0') + '</div></div>' +
       '<div class="col"><div class="lab">지출</div><div class="val' + (s.expense ? ' down' : '') + '">' + (s.expense ? '-' + C.comma(s.expense) : '0') + '</div></div>' +
-      '<div class="col"><div class="lab">남은 돈</div><div class="val">' + C.comma(s.net) + '</div></div>' +
+      '<div class="col"><div class="lab">남은 돈</div><div class="val' + (s.net < 0 ? ' down' : '') + '">' + C.comma(s.net) + '</div></div>' +
       '</div>' +
       '<button class="nwline" data-act="go-assets">순자산 <b>' + C.comma(nw.net) + '원</b><span class="chev">›</span></button>' +
       budgetBlock(bu) +
@@ -395,7 +392,7 @@
       '<div class="accmain"><b>' + esc(a.name) + (hidden ? ' <span style="font-size:9.5px;font-weight:700;color:#9C96B0;background:#F4F2FA;border-radius:5px;padding:1px 4px">숨김</span>' : '') + '</b>' +
       '<span>' + meta.label + (a.memo ? ' · ' + esc(a.memo) : '') + '</span></div>' +
       '<div class="accamt' + (liab ? ' liab' : '') + '"><b>' + C.comma(Math.abs(bal)) + '원</b></div>' +
-      (a.type === 'card' && Math.abs(bal) > 0 ? '<button class="paybtn" data-act="pay-card" data-id="' + a.id + '">납부</button>' : '') +
+      (a.type === 'card' && Math.abs(bal) > 0 ? '<button class="paybtn" data-act="pay-card" data-id="' + a.id + '">납부</button>' : '<span class="chev">›</span>') +
       '</div>';
     return h;
   }
@@ -421,25 +418,35 @@
       '<div class="chg">' + (chg === 0 ? '지난달과 같아요' : '지난달 대비 ' + (chg > 0 ? '+' : '−') + C.comma(Math.abs(chg)) + '원') + '</div></div>';
 
     h += '<div class="card"><h3>자산 구성</h3>';
-    if (!items.length) h += '<div class="emptysmall">자산 계좌를 추가하면 비율이 보여요</div>';
+    if (!items.length) h += '<div class="emptysmall">계좌 잔액을 넣으면 자산 비율이 보여요</div>';
     else {
       h += '<div class="donutwrap">' + svgDonut(items, 116, 17, '총 자산', C.wonShort(nw.assets)) +
         '<div class="legend">' + items.map(function (it) {
           var pct = nw.assets > 0 ? it.value / nw.assets * 100 : 0;
-          return '<div class="li"><span class="dot" style="background:' + it.color + '"></span>' + esc(it.label) + '<b>' + Math.round(pct) + '%</b></div>';
+          return '<div class="li"><span class="dot" style="background:' + it.color + '"></span>' + esc(it.label) + '<b>' + (pct > 0 && pct < 1 ? '<1%' : Math.round(pct) + '%') + '</b></div>';
         }).join('') + '</div></div>';
     }
     h += '</div>';
 
-    h += '<div class="sechead"><h3>자산</h3><span class="cnt">' + assetAcc.length + '개</span><button class="linkbtn" data-act="add-account">+ 계좌</button></div>';
+    var hiddenA = assetAcc.filter(function (a) { return a.active === false; }).length;
+    h += '<div class="sechead"><h3>자산</h3><span class="cnt">' + (assetAcc.length - hiddenA) + '개' + (hiddenA ? ' · 숨김 ' + hiddenA : '') + '</span><button class="linkbtn" data-act="add-account">+ 계좌</button></div>';
     h += assetAcc.length ? assetAcc.map(accRow).join('') : '<div class="empty" style="padding:18px"><b>자산 계좌가 없어요</b>입출금·적금·투자 계좌를 추가해 보세요.</div>';
 
-    h += '<div class="sechead"><h3>부채</h3><span class="cnt">' + liabAcc.length + '개</span></div>';
+    var hiddenL = liabAcc.filter(function (a) { return a.active === false; }).length;
+    h += '<div class="sechead"><h3>부채</h3><span class="cnt">' + (liabAcc.length - hiddenL) + '개' + (hiddenL ? ' · 숨김 ' + hiddenL : '') + '</span></div>';
     h += liabAcc.length ? liabAcc.map(accRow).join('') : '<div class="empty" style="padding:18px"><b>부채가 없어요</b>카드·대출이 생기면 여기서 관리해요.</div>';
 
-    var tr = C.netWorthTrend(S, curYm, 12, today);
-    h += '<div class="card" style="margin-top:16px"><h3>순자산 추이<span class="r">최근 12개월</span></h3>' +
-      '<div class="chartbox">' + svgArea(tr, 344, 124, '#7C5CFF') + '</div><ul class="nwlist">';
+    var firstYm = null;
+    S.txns.forEach(function (t) {
+      var m = t.date.slice(0, 7);
+      if (!firstYm || m < firstYm) firstYm = m;
+    });
+    var n = firstYm ? Math.min(12, Math.max(1, C.monthDiff(firstYm, curYm) + 1)) : 1;
+    var tr = C.netWorthTrend(S, curYm, n, today);
+    h += '<div class="card" style="margin-top:16px"><h3>순자산 추이<span class="r">' + (n > 1 ? '최근 ' + n + '개월' : '이번 달') + '</span></h3>';
+    if (n >= 2) h += '<div class="chartbox">' + svgArea(tr, 344, 124, '#7C5CFF') + '</div>';
+    else h += '<div class="muted" style="margin:4px 0 6px">이번 달부터 기록이 쌓이고 있어요. 다음 달부터 추이가 보여요.</div>';
+    h += '<ul class="nwlist">';
     tr.slice(-6).slice().reverse().forEach(function (p) {
       var idx = tr.indexOf(p);
       var before = idx > 0 ? tr[idx - 1] : null;
@@ -453,8 +460,8 @@
 
   /* ---------------- 설정 탭 ---------------- */
 
-  function srow(act, emoji, title, sub, extra) {
-    return '<button class="srow" data-act="' + act + '"' + (extra || '') + '><span class="em">' + emoji + '</span>' +
+  function srow(act, emoji, title, sub, extra, cls) {
+    return '<button class="srow' + (cls ? ' ' + cls : '') + '" data-act="' + act + '"' + (extra || '') + '><span class="em">' + emoji + '</span>' +
       '<span>' + esc(title) + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '</span><span class="chev">›</span></button>';
   }
 
@@ -475,7 +482,7 @@
       '</div>';
     h += '<div class="sechead"><h3>체험</h3></div><div class="sgroup">' +
       srow('load-sample', '🧪', '샘플 데이터로 보기', '가상의 예시 기록으로 기능을 둘러보기') +
-      srow('reset-all', '🧹', '모든 기록 지우기', '빈 가계부로 처음부터 시작') +
+      srow('reset-all', '🧹', '모든 기록 지우기', '빈 가계부로 처음부터 시작', '', 'danger') +
       '</div>';
     h += '<div class="infotext"><b>기록은 이 브라우저에만 저장돼요.</b><br>' +
       '서버로 보내지 않고, 공개 저장소에도 올라가지 않아요. 브라우저 데이터를 지우면 함께 사라지니 가끔 JSON으로 백업해 주세요.<br><br>' +
@@ -546,7 +553,7 @@
     var list = C.sortedAccounts(S, false);
     if (!list.length) return '<option value="">계좌를 먼저 만들어 주세요</option>';
     return list.map(function (a) {
-      return '<option value="' + a.id + '"' + (a.id === sel ? ' selected' : '') + '>' + esc(a.name) + ' · ' + C.typeMeta(a.type).label + '</option>';
+      return '<option value="' + a.id + '"' + (a.id === sel ? ' selected' : '') + '>' + esc(a.name) + '</option>';
     }).join('');
   }
 
@@ -579,9 +586,9 @@
     if (transfer) {
       h += '<div class="field"><label>받는 계좌</label><select id="enTo">' + accOptions(entry.toAccountId) + '</select></div>';
     }
-    h += '<div class="two"><div class="field"><label>날짜</label><input type="date" id="enDate" value="' + esc(entry.date) + '"></div>' +
+    h += '<div class="field"><label>메모</label><input type="text" id="enMemo" maxlength="60" autocomplete="off" placeholder="예: 점심 김치찌개" value="' + esc(entry.memo || '') + '"></div>' +
+      '<div class="two"><div class="field"><label>날짜</label><input type="date" id="enDate" value="' + esc(entry.date) + '"></div>' +
       '<div class="field"><label>시간</label><input type="time" id="enTime" value="' + esc(entry.time || '') + '"></div></div>' +
-      '<div class="field"><label>메모</label><input type="text" id="enMemo" maxlength="60" autocomplete="off" placeholder="예: 점심 김치찌개" value="' + esc(entry.memo || '') + '"></div>' +
       '</div><div class="sheet-foot">' + (isEdit ? '<button class="btn danger" data-act="del-txn">삭제</button>' : '') +
       '<button class="btn primary" id="enSave">' + (isEdit ? '수정 저장' : '저장') + '</button></div>';
     return h;
@@ -748,7 +755,7 @@
     if (!from || from === cardId) { toast('다른 계좌를 골라 주세요'); return; }
     if (amt <= 0) { toast('금액을 확인해 주세요'); return; }
     S.txns.push({
-      id: C.uid('t'), type: 'transfer', amount: Math.abs(amt), date: date, time: '12:00',
+      id: C.uid('t'), type: 'transfer', amount: Math.abs(amt), date: date, time: C.nowTime(),
       categoryId: '', accountId: from, toAccountId: cardId, memo: '카드값 납부',
       createdAt: new Date().toISOString()
     });
@@ -1046,7 +1053,7 @@
       mapField('cvType', '구분(수입/지출)', csvImp.map.type) + mapField('cvCat', '카테고리', csvImp.map.category) +
       mapField('cvAcc', '결제수단/계좌', csvImp.map.account) + mapField('cvTo', '받는 계좌(이체)', csvImp.map.toAccount) +
       mapField('cvMemo', '메모', csvImp.map.memo) + '</div>' +
-      '<div class="field"><label>금액이 양수일 때</label><select id="cvMode">' +
+      '<div class="field"><label>금액이 양수일 때 <span style="font-weight:600;color:#9C96B0">(구분 컬럼이 없을 때만)</span></label><select id="cvMode">' +
       [['sign', '부호대로 (음수=지출)'], ['expense', '모두 지출'], ['income', '모두 수입']].map(function (o) {
         return '<option value="' + o[0] + '"' + (csvImp.mode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
       }).join('') + '</select></div>' +
@@ -1465,6 +1472,7 @@
     main.innerHTML = TAB === 'txns' ? txnsHTML() : TAB === 'stats' ? statsHTML() : TAB === 'assets' ? assetsHTML() : settingsHTML();
     var fab = q('fab');
     if (fab) fab.hidden = TAB !== 'txns';
+    if (document.body && document.body.classList) document.body.classList.toggle('has-fab', TAB === 'txns');
     var tabs = document.querySelectorAll('.tab');
     for (var i = 0; i < tabs.length; i++) {
       tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab') === TAB);

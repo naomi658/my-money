@@ -78,6 +78,10 @@
 
   function monthEnd(ym) { return ym + '-' + pad2(daysInMonth(ym)); }
 
+  function monthDiff(fromYm, toYm) {
+    return (+toYm.slice(0, 4) - +fromYm.slice(0, 4)) * 12 + (+toYm.slice(5, 7) - +fromYm.slice(5, 7));
+  }
+
   function monthLabel(ym) { return ym.slice(0, 4) + '년 ' + (+ym.slice(5, 7)) + '월'; }
 
   function monthLabelShort(ym) { return (+ym.slice(5, 7)) + '월'; }
@@ -916,7 +920,7 @@
     ACCOUNT_TYPES: ACCOUNT_TYPES, DEFAULT_CATS: DEFAULT_CATS, CAT_COLORS: CAT_COLORS,
     num: num, comma: comma, won: won, wonShort: wonShort,
     pad2: pad2, todayISO: todayISO, nowTime: nowTime, validDate: validDate,
-    ymOf: ymOf, addMonths: addMonths, daysInMonth: daysInMonth, monthEnd: monthEnd,
+    ymOf: ymOf, addMonths: addMonths, daysInMonth: daysInMonth, monthEnd: monthEnd, monthDiff: monthDiff,
     monthLabel: monthLabel, monthLabelShort: monthLabelShort, dowNames: dowNames,
     dowOf: dowOf, dateLabelKo: dateLabelKo, clampDay: clampDay, uid: uid,
     typeMeta: typeMeta, isLiab: isLiab, defaultCats: defaultCats, makeCat: makeCat,
