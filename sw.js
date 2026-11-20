@@ -1,12 +1,12 @@
 /* 나의 가계부 — 오프라인 앱 셸 캐시
    화면·코드(html/js/json)는 네트워크 우선, 실패하면 캐시.
    이미지(아이콘)는 캐시 우선. 업데이트가 한 박자 늦게 도착하지 않게 하기 위함. */
-const CACHE = 'mymoney-shell-v1';
+const CACHE = 'mymoney-shell-v2';
 const ASSETS = [
   './',
   './index.html',
-  './core.js?v=1',
-  './app.js?v=1',
+  './core.js?v=2',
+  './app.js?v=2',
   './manifest.json?v=1',
   './icon-180.png?v=1',
   './icon-192.png?v=1',

@@ -1019,13 +1019,14 @@
   function startCsvImport(text, fileName) {
     var parsed = C.parseCSV(text);
     if (!parsed.rows.length) { toast('CSV에서 행을 찾지 못했어요'); return; }
-    var map = C.headerGuess(parsed.rows[0]);
+    var preset = C.presetFor(parsed.rows[0]);
+    var map = preset ? preset.map : C.headerGuess(parsed.rows[0]);
     if (map.date == null && map.amount == null && map.expense == null) map.date = 0;
     var mode = 'expense';
     if (map.amount != null && map.expense == null && map.income == null) {
       mode = C.guessAmountMode(parsed.rows, map.amount, true);
     }
-    csvImp = { rows: parsed.rows, hasHeader: true, map: map, mode: mode, addMissing: true, file: fileName || '' };
+    csvImp = { rows: parsed.rows, hasHeader: true, map: map, mode: mode, addMissing: true, file: fileName || '', preset: preset ? preset.name : '' };
     if (/\uFFFD/.test(text)) toast('글자가 깨져 보이면 엑셀에서 CSV UTF-8로 저장해 다시 올려 주세요');
     paintCsv();
   }
@@ -1044,7 +1045,9 @@
   }
 
   function paintCsv() {
-    var h = '<div class="sheet-head"><h2>CSV 가져오기</h2><span class="sub">' + csvImp.rows.length + '행</span><button class="x" data-act="close-sheet">✕</button></div><div class="sheet-body">' +
+    var fname = csvImp.file ? (csvImp.file.length > 22 ? csvImp.file.slice(0, 20) + '…' : csvImp.file) : '';
+    var h = '<div class="sheet-head"><h2>CSV 가져오기</h2><span class="sub">' + csvImp.rows.length + '행' + (fname ? ' · ' + esc(fname) : '') + '</span><button class="x" data-act="close-sheet">✕</button></div><div class="sheet-body">' +
+      (csvImp.preset ? '<div class="note" style="margin-bottom:8px">📥 <b>' + esc(csvImp.preset) + '</b>에서 내보낸 파일로 보여요. 컬럼은 자동으로 맞춰 뒀으니 아래에서 확인만 해 주세요.</div>' : '') +
       '<div class="note">엑셀에서 내보낸 CSV도 OK. <b>날짜</b>와 <b>금액</b>(또는 지출/수입) 컬럼만 맞추면 나머지는 비워도 돼요.<br>글자가 깨져 보이면 엑셀에서 <b>CSV UTF-8</b>로 저장해 다시 올려 주세요.</div>' +
       '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#615B78;margin:8px 0 6px">' +
       '<input type="checkbox" id="cvHead" ' + (csvImp.hasHeader ? 'checked' : '') + ' style="width:auto;padding:0"> 첫 줄은 컬럼 이름(헤더)이에요</label>' +
@@ -1072,6 +1075,8 @@
   function readCsvMap() {
     if (!csvImp) return;
     var m = {};
+    /* 화면에 없는 칸(하위 분류·메모2·지불)은 프리셋 값을 그대로 둔다 */
+    (['sub', 'memo2', 'pay']).forEach(function (k) { if (csvImp.map && csvImp.map[k] != null) m[k] = csvImp.map[k]; });
     [['date', 'cvDate'], ['amount', 'cvAmount'], ['expense', 'cvExpense'], ['income', 'cvIncome'],
       ['type', 'cvType'], ['category', 'cvCat'], ['account', 'cvAcc'], ['toAccount', 'cvTo'], ['memo', 'cvMemo']].forEach(function (p) {
       var el = q(p[1]);
@@ -1101,6 +1106,14 @@
       h += '<div style="margin-top:6px;color:#615B78">총 <b>' + res.txns.length + '건</b> 가져올 수 있어요' +
         (res.badDate ? ' · 날짜를 못 읽은 ' + res.badDate + '행 제외' : '') +
         (res.skipped ? ' · 금액이 없는 ' + res.skipped + '행 제외' : '') + '</div>';
+      var sumInc = 0, sumExp = 0, sumTr = 0;
+      res.txns.forEach(function (t) {
+        if (t.type === 'income') sumInc += t.amount;
+        else if (t.type === 'expense') sumExp += t.amount;
+        else sumTr += t.amount;
+      });
+      h += '<div style="margin-top:4px;color:#9C96B0">수입 ' + C.comma(sumInc) + '원 · 지출 ' + C.comma(sumExp) +
+        '원' + (sumTr ? ' · 이체 ' + C.comma(sumTr) + '원' : '') + '</div>';
       p.innerHTML = h;
     }
     var g = q('cvGo');
@@ -1215,20 +1228,38 @@
     fr.readAsText(f, 'UTF-8');
   }
 
+  /* 파일 바이트 → 글자. 엑셀·위플·뱅크샐러드 내보내기에는 UTF-8(BOM 있음/없음), EUC-KR(CP949),
+     UTF-16LE/BE가 섞여 있어서 BOM과 바이트 모양을 보고 고른다 (아이폰 사파리에서도 깨지지 않게). */
+  function decodeCsvBytes(buf) {
+    var b = new Uint8Array(buf);
+    try {
+      if (b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) {
+        return new TextDecoder('utf-8').decode(buf);
+      }
+      if (b.length >= 2 && b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
+      if (b.length >= 2 && b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
+      /* BOM 없는 UTF-16: 첫 수백 바이트에 0 바이트가 번갈아 나온다 */
+      var n = Math.min(b.length, 400), zeros = 0;
+      for (var i = 0; i < n; i++) if (b[i] === 0) zeros++;
+      if (n > 8 && zeros > n * 0.25) {
+        var evenZero = 0, oddZero = 0;
+        for (var j = 0; j < n; j++) { if (b[j] === 0) { if (j % 2) oddZero++; else evenZero++; } }
+        return new TextDecoder(evenZero >= oddZero ? 'utf-16be' : 'utf-16le').decode(buf);
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch (err) {
+      try { return new TextDecoder('euc-kr').decode(buf); }
+      catch (err2) { return new TextDecoder('utf-8').decode(buf); }
+    }
+  }
+
   function onFileCSV(e) {
     var f = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!f) return;
     var fr = new FileReader();
     fr.onload = function () {
-      var text = '';
-      try {
-        text = new TextDecoder('utf-8', { fatal: true }).decode(fr.result);
-      } catch (err) {
-        try { text = new TextDecoder('euc-kr').decode(fr.result); }
-        catch (err2) { text = new TextDecoder('utf-8').decode(fr.result); }
-      }
-      startCsvImport(text, f.name);
+      startCsvImport(decodeCsvBytes(fr.result), f.name);
     };
     fr.readAsArrayBuffer(f);
   }

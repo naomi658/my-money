@@ -162,6 +162,24 @@
     return { id: uid(type === 'income' ? 'ic' : 'cc'), name: name, type: type, emoji: emoji || (type === 'income' ? '➕' : '🏷'), color: color, custom: true };
   }
 
+  /* 다른 앱에서 가져온 카테고리 이름을 보고 어울리는 이모지를 골라 준다 */
+  function emojiFor(name, type) {
+    var s = String(name || '');
+    var table = [
+      [/이자|배당|예금이자/, '📈'], [/저축|적금|예금|청약|IRP|투자|주식/, '🐷'],
+      [/카드대금|카드값/, '💳'], [/보험/, '🛡'], [/월세|전세|주거|관리비|전기|가스|수도/, '🏠'],
+      [/통신|휴대폰|인터넷/, '📱'], [/식비|음식|배달|외식|반찬|장보기/, '🍚'], [/카페|커피|디저트/, '☕'],
+      [/교통|버스|지하철|택시|주유|기름/, '🚌'], [/의료|병원|약|건강/, '💊'],
+      [/미용|헤어|뷰티|화장|네일/, '💇'], [/빨래|세탁/, '🧺'],
+      [/의류|옷|신발|쇼핑/, '🛍'], [/생필품|생활|마트/, '🧴'],
+      [/문화|여가|영화|공연|여행|취미|게임/, '🎬'], [/경조사|선물|축의|조의/, '🎁'],
+      [/교육|학원|책|강의|등록금/, '📚'], [/수당|월급|급여|상여|보너스/, '💼'],
+      [/용돈/, '👛'], [/기타|미분류/, type === 'income' ? '➕' : '📌']
+    ];
+    for (var i = 0; i < table.length; i++) if (table[i][0].test(s)) return table[i][1];
+    return type === 'income' ? '➕' : '🏷';
+  }
+
   /* ---------------- 상태 ---------------- */
 
   function freshState() {
@@ -528,25 +546,71 @@
     return null;
   }
 
+  function normHead(h) {
+    return String(h == null ? '' : h).toLowerCase().replace(/[\s_\-\[\]()]/g, '');
+  }
+
+  /* 컬럼 이름 → 앱 필드. 한 컬럼이 두 필드에 잡히지 않도록 위에서부터 먼저 맞는 하나만 쓴다.
+     (위플 머니처럼 '수입/지출' 한 칸에 구분이 들어 있는 파일, '하위 분류', '지불'·'카드'가
+      따로 있는 파일, '내역'과 '메모'가 둘 다 있는 파일까지 같은 규칙으로 처리) */
   function headerGuess(header) {
     var map = {};
-    header.forEach(function (h, idx) {
-      var s = String(h || '').toLowerCase().replace(/\s/g, '');
-      if (map.date === undefined && /(날짜|일자|거래일|date)/.test(s)) map.date = idx;
-      if (map.memo === undefined && /(메모|내용|적요|사용처|가맹점|memo|desc)/.test(s)) map.memo = idx;
-      if (map.category === undefined && /(카테고리|분류|항목|category)/.test(s)) map.category = idx;
-      if (map.toAccount === undefined && /(받는\s*계좌|받는계좌|입금계좌|to\s*account)/.test(s)) map.toAccount = idx;
-      else if (map.account === undefined && /(결제수단|계좌|카드|통장|account|payment)/.test(s)) map.account = idx;
-      if (map.type === undefined && /(구분|유형|타입|type)/.test(s)) map.type = idx;
-      if (map.expense === undefined && /(지출|출금|사용금액|승인금액|expense|out)/.test(s)) map.expense = idx;
-      if (map.income === undefined && /(수입|입금|income|in)/.test(s)) map.income = idx;
-      if (map.amount === undefined && /(금액|amount|합계)/.test(s)) map.amount = idx;
+    (header || []).forEach(function (h, idx) {
+      var s = normHead(h);
+      if (!s) return;
+      /* 사용자·연번 같은 열은 거래 정보가 아니다 */
+      if (/^(사용자|이름|작성자|소유자|user|owner|no|번호|연번|순번)$/.test(s)) return;
+
+      var both = !/금액|amount/.test(s) && /(수입.{0,3}지출|지출.{0,3}수입|입출|in.{0,3}out|out.{0,3}in)/.test(s);
+
+      if (map.date === undefined && /(날짜|일자|거래일|date|when)/.test(s)) { map.date = idx; return; }
+      /* '수입/지출'처럼 구분이 한 칸에 있는 경우가 먼저 */
+      if (map.type === undefined && (both || /(^구분$|유형|타입|거래구분|입출구분|^type$)/.test(s))) { map.type = idx; return; }
+      if (map.sub === undefined && /(하위|소분류|세분류|sub)/.test(s)) { map.sub = idx; return; }
+      if (map.category === undefined && /(카테고리|분류|항목|category)/.test(s)) { map.category = idx; return; }
+      if (map.toAccount === undefined && /(받는|입금계좌|도착|toaccount|to계좌)/.test(s)) { map.toAccount = idx; return; }
+      if (map.pay === undefined && /(지불|결제방법|결제방식|결제구분|paymentmethod|지급수단)/.test(s)) { map.pay = idx; return; }
+      if (map.account === undefined && /(결제수단|계좌|카드|통장|account|payment|wallet)/.test(s)) { map.account = idx; return; }
+      if (map.expense === undefined && /(지출|출금|사용금액|승인금액|expense|withdraw)/.test(s)) { map.expense = idx; return; }
+      if (map.income === undefined && /(수입|입금|income|deposit)/.test(s)) { map.income = idx; return; }
+      if (map.amount === undefined && /(금액|amount|합계|price)/.test(s)) { map.amount = idx; return; }
+      if (/(메모|내용|내역|적요|사용처|가맹점|상호|비고|memo|desc|note|remark)/.test(s)) {
+        if (map.memo === undefined) { map.memo = idx; return; }
+        if (map.memo2 === undefined) { map.memo2 = idx; return; }
+      }
     });
     if (map.amount !== undefined && map.expense !== undefined && map.amount === map.expense && map.income === undefined) {
       /* '사용금액'은 지출 컬럼으로만 쓰이게 둔다 */
       delete map.amount;
     }
     return map;
+  }
+
+  /* 자주 쓰는 내보내기 형식은 컬럼 이름으로 바로 알아본다 (이름만 맞으면 순서가 달라도 OK) */
+  function presetFor(header) {
+    var idx = {};
+    (header || []).forEach(function (h, i) { idx[normHead(h)] = i; });
+    function pick(re) {
+      var keys = Object.keys(idx);
+      for (var i = 0; i < keys.length; i++) if (re.test(keys[i])) return idx[keys[i]];
+      return undefined;
+    }
+    /* 위플 머니: 사용자,거래일,수입/지출,금액,분류,하위 분류,내역,지불,카드,메모 */
+    var wDate = pick(/^(거래일|거래일시)$/), wType = pick(/^(수입\/?지출|수입지출|입출)$/),
+        wAmount = pick(/^금액$/), wCat = pick(/^분류$/);
+    if (wDate !== undefined && wType !== undefined && wAmount !== undefined && wCat !== undefined) {
+      var cardCol = pick(/^카드$/);
+      return {
+        key: 'weple', name: '위플 머니',
+        map: {
+          date: wDate, type: wType, amount: wAmount, category: wCat,
+          sub: pick(/^하위분류$/), memo: pick(/^내역$/), pay: pick(/^지불$/), memo2: pick(/^메모$/),
+          account: cardCol !== undefined ? cardCol : pick(/^(결제수단|계좌)$/),
+          toAccount: pick(/^(받는계좌|입금계좌)$/)
+        }
+      };
+    }
+    return null;
   }
 
   /* 한 금액 컬럼만 있을 때: 음수가 섞여 있으면 부호대로, 모두 양수면 지출로 보는 게 보통 */
@@ -561,12 +625,24 @@
 
   function accountTypeFromName(name) {
     var s = String(name || '');
+    /* 체크·직불카드는 쓴 만큼 통장에서 바로 빠져나가므로 부채가 아니다 */
+    if (/(체크|직불|debit)/i.test(s)) return 'checking';
     if (/카드/.test(s)) return 'card';
     if (/현금/.test(s)) return 'cash';
     if (/(적금|예금|저축)/.test(s)) return 'savings';
     if (/(증권|주식|투자|코인)/.test(s)) return 'investment';
     if (/(대출|론)/.test(s)) return 'loan';
     return 'checking';
+  }
+
+  /* 내역·하위 분류·메모를 한 줄로: 겹치는 말은 한 번만 (예: 내역과 하위 분류가 '적금'으로 같을 때) */
+  function joinMemo(parts) {
+    var out = [];
+    (parts || []).forEach(function (p) {
+      var s = String(p == null ? '' : p).trim();
+      if (s && out.indexOf(s) < 0) out.push(s);
+    });
+    return out.join(' · ');
   }
 
   /* CSV 행 → 거래 목록 (상태는 건드리지 않음) */
@@ -576,6 +652,21 @@
     var mode = opt.amountMode || 'sign'; /* sign | expense | income */
     var start = opt.hasHeader ? 1 : 0;
     var made = [], skipped = 0, badDate = 0;
+
+    /* 이 파일이 지출을 음수로 적는 형식인지(앱이 내보낸 CSV가 그렇다) 먼저 본다.
+       그런 파일에서는 음수가 '환불'이 아니라 그냥 지출이라 뒤집지 않는다. */
+    var signedExpense = false;
+    if (map.type != null && map.amount != null) {
+      var nExp = 0, pExp = 0;
+      for (var k = start; k < rows.length; k++) {
+        var rk = rows[k] || [];
+        if (!/지출|출금|expense|out/i.test(String(rk[map.type] || ''))) continue;
+        var aa = parseAmount(rk[map.amount]);
+        if (aa == null) continue;
+        if (aa < 0) nExp++; else pExp++;
+      }
+      signedExpense = nExp > pExp;
+    }
     var newAccounts = [], newCats = [];
     var accByName = {}, catByName = {};
     (state.accounts || []).forEach(function (a) { accByName[a.name.trim().toLowerCase()] = a; });
@@ -609,7 +700,11 @@
       var catName = map.category != null ? String(row[map.category] || '').trim() : '';
       var accName = map.account != null ? String(row[map.account] || '').trim() : '';
       var toName = map.toAccount != null ? String(row[map.toAccount] || '').trim() : '';
-      var memo = map.memo != null ? String(row[map.memo] || '').trim() : '';
+      var memo = joinMemo([
+        map.memo != null ? row[map.memo] : '',
+        map.sub != null ? row[map.sub] : '',
+        map.memo2 != null ? row[map.memo2] : ''
+      ]);
 
       /* 이체 행: 보내는 계좌 → 받는 계좌 */
       if (/이체|transfer|옮김/.test(typeText)) {
@@ -634,11 +729,19 @@
       } else if (incAmt && Math.abs(incAmt) > 0 && (!expAmt || Math.abs(expAmt) === 0)) {
         type = 'income'; amount = Math.abs(incAmt);
       } else if (oneAmt != null && oneAmt !== 0) {
-        if (/수입|입금|income|in\b/i.test(typeText)) { type = 'income'; amount = Math.abs(oneAmt); }
-        else if (/지출|출금|expense|out\b/i.test(typeText)) { type = 'expense'; amount = Math.abs(oneAmt); }
-        else if (mode === 'expense') { type = 'expense'; amount = Math.abs(oneAmt); }
-        else if (mode === 'income') { type = 'income'; amount = Math.abs(oneAmt); }
-        else { type = oneAmt < 0 ? 'expense' : 'income'; amount = Math.abs(oneAmt); }
+        var fromCol = false;
+        if (/수입|입금|income|in\b/i.test(typeText)) { type = 'income'; fromCol = true; }
+        else if (/지출|출금|expense|out\b/i.test(typeText)) { type = 'expense'; fromCol = true; }
+        else if (mode === 'expense') { type = 'expense'; }
+        else if (mode === 'income') { type = 'income'; }
+        else { type = oneAmt < 0 ? 'expense' : 'income'; }
+        amount = Math.abs(oneAmt);
+        /* 구분이 '지출'인데 금액만 음수면 취소·환불로 보고 반대 칸으로 옮긴다 (위플 머니에 이런 행이 있음).
+           그 달의 수입-지출 차이와 계좌 잔액이 원본과 똑같아지도록. 지출을 음수로 적는 형식이면 그대로 둠. */
+        if (fromCol && oneAmt < 0 && !signedExpense) {
+          type = type === 'expense' ? 'income' : 'expense';
+          if (!/환불|취소/.test(memo)) memo = joinMemo([memo, '환불']);
+        }
       } else {
         skipped++; continue;
       }
@@ -647,7 +750,7 @@
       var cat = null;
       if (catName) cat = catByName[(type + '|' + catName).toLowerCase()] || null;
       if (!cat && catName && opt.addMissing) {
-        cat = makeCat(catName, type, type === 'income' ? '➕' : '🏷', catName.length + type.length);
+        cat = makeCat(catName, type, emojiFor(catName, type), catName.length + type.length);
         catByName[(type + '|' + catName).toLowerCase()] = cat;
         newCats.push(cat);
       }
@@ -677,14 +780,18 @@
     return [t.date, t.type, Math.round(num(t.amount)), String(t.memo || '').trim().toLowerCase(), t.accountId || ''].join('|');
   }
 
+  /* 들어온 기록을 지금 기록과 견준다. 같은 내용이 여러 번 있는 파일(하루에 잔액 이자가 여러 번 붙은 것 같은 것)도
+     빠뜨리지 않도록 '있는 만큼'만 중복으로 보고, 같은 파일을 다시 가져오면 한 건도 더하지 않는다. */
   function mergeTxns(state, incoming) {
-    var seen = {};
-    (state.txns || []).forEach(function (t) { seen[dedupeKey(t)] = 1; });
+    var have = {};
+    (state.txns || []).forEach(function (t) {
+      var k = dedupeKey(t);
+      have[k] = (have[k] || 0) + 1;
+    });
     var added = 0, skipped = 0;
     incoming.forEach(function (t) {
       var k = dedupeKey(t);
-      if (seen[k]) { skipped++; return; }
-      seen[k] = 1;
+      if (have[k] > 0) { have[k]--; skipped++; return; }
       state.txns.push(t);
       added++;
     });
@@ -923,7 +1030,7 @@
     ymOf: ymOf, addMonths: addMonths, daysInMonth: daysInMonth, monthEnd: monthEnd, monthDiff: monthDiff,
     monthLabel: monthLabel, monthLabelShort: monthLabelShort, dowNames: dowNames,
     dowOf: dowOf, dateLabelKo: dateLabelKo, clampDay: clampDay, uid: uid,
-    typeMeta: typeMeta, isLiab: isLiab, defaultCats: defaultCats, makeCat: makeCat,
+    typeMeta: typeMeta, isLiab: isLiab, defaultCats: defaultCats, makeCat: makeCat, emojiFor: emojiFor,
     freshState: freshState, findAccount: findAccount, findCat: findCat,
     accountFlow: accountFlow, accountBalance: accountBalance, setAccountBalance: setAccountBalance,
     sortedAccounts: sortedAccounts, netWorth: netWorth,
@@ -932,7 +1039,8 @@
     budgetOf: budgetOf, budgetUsage: budgetUsage,
     recurringPending: recurringPending, applyRecurring: applyRecurring,
     detectDelimiter: detectDelimiter, parseCSV: parseCSV, parseAmount: parseAmount,
-    parseDateCell: parseDateCell, headerGuess: headerGuess, csvToTxns: csvToTxns,
+    parseDateCell: parseDateCell, headerGuess: headerGuess, presetFor: presetFor, csvToTxns: csvToTxns,
+    joinMemo: joinMemo,
     guessAmountMode: guessAmountMode,
     dedupeKey: dedupeKey, mergeTxns: mergeTxns, toCSV: toCSV,
     exportJSON: exportJSON, normalizeState: normalizeState, importJSON: importJSON,
