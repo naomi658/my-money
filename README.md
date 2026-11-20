@@ -72,9 +72,10 @@
 ## 배포
 
 ```bash
-# 저장소를 만든 뒤 (Pages: main / root)
-git remote add origin https://github.com/naomi658/my-money.git
+# GitHub에 naomi658/my-money 저장소를 만든 뒤 (origin은 이미 연결되어 있음)
 git push -u origin main
+
+# Pages 켜기: Settings → Pages → Source: Deploy from a branch → main / (root)
 ```
 
 Pages가 켜지면 https://naomi658.github.io/my-money/ 에서 열립니다.
